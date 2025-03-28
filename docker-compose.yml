@@ -1,0 +1,147 @@
+version: '3.8'
+
+services:
+  # Database
+  postgres:
+    image: postgres:14-alpine
+    environment:
+      - POSTGRES_USER=llmuser
+      - POSTGRES_PASSWORD=llmpassword
+      - POSTGRES_DB=llmorchestrator
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U llmuser"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # Message broker
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # Master Control Program
+  mcp:
+    build:
+      context: ./mcp
+    volumes:
+      - ./mcp:/app
+      - ./uploads:/app/uploads
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=postgresql://llmuser:llmpassword@postgres/llmorchestrator
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+
+  # Celery worker
+  worker:
+    build:
+      context: ./mcp
+    volumes:
+      - ./mcp:/app
+      - ./uploads:/app/uploads
+    environment:
+      - DATABASE_URL=postgresql://llmuser:llmpassword@postgres/llmorchestrator
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+    depends_on:
+      - mcp
+      - redis
+      - postgres
+    command: celery -A celery_app.celery_app worker --loglevel=info
+
+  # File Handler Agent
+  file_handler:
+    build:
+      context: ./agents/file_handler
+    volumes:
+      - ./agents/file_handler:/app
+    ports:
+      - "8001:8000"
+    environment:
+      - PYTHONUNBUFFERED=1
+
+  # Summarizer Agent
+  summarizer:
+    build:
+      context: ./agents/summarizer
+    volumes:
+      - ./agents/summarizer:/app
+    ports:
+      - "8002:8000"
+    environment:
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - PYTHONUNBUFFERED=1
+
+  # Citation Agent
+  citation:
+    build:
+      context: ./agents/citation
+    volumes:
+      - ./agents/citation:/app
+    ports:
+      - "8003:8000"
+    environment:
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - PYTHONUNBUFFERED=1
+
+  # Classifier Agent
+  classifier:
+    build:
+      context: ./agents/classifier
+    volumes:
+      - ./agents/classifier:/app
+    ports:
+      - "8004:8000"
+    environment:
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - PYTHONUNBUFFERED=1
+
+  # Quality Agent
+  quality:
+    build:
+      context: ./agents/quality
+    volumes:
+      - ./agents/quality:/app
+    ports:
+      - "8005:8000"
+    environment:
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - PYTHONUNBUFFERED=1
+
+  # Frontend
+  frontend:
+    build:
+      context: ./frontend
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    ports:
+      - "3000:3000"
+    environment:
+      - REACT_APP_API_URL=http://localhost:8000
+    depends_on:
+      - mcp
+
+volumes:
+  postgres_data:
