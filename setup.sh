@@ -18,10 +18,12 @@ if ! command -v docker &> /dev/null; then
     exit 1
 fi
 
-# Check if Docker Compose is installed
-if ! command -v docker-compose &> /dev/null; then
-    echo -e "${RED}Error: Docker Compose is not installed.${NC}"
-    echo "Please install Docker Compose first: https://docs.docker.com/compose/install/"
+# Check if Docker is running
+if ! docker info &> /dev/null; then
+    echo -e "${RED}Error: Docker daemon is not running.${NC}"
+    echo -e "${YELLOW}Please start Docker Desktop first and try again.${NC}"
+    echo "If using macOS, please open Docker Desktop from your Applications folder."
+    echo "Wait for Docker to fully start (solid whale icon in menu bar) before continuing."
     exit 1
 fi
 
@@ -33,8 +35,16 @@ mkdir -p agents/file_handler agents/summarizer agents/citation agents/classifier
 # Create .env file from example if it doesn't exist
 if [ ! -f .env ]; then
     echo -e "${YELLOW}Creating .env file from example...${NC}"
-    cp .env.example .env
+    cat > .env << 'EOF'
+# OpenAI API Key for GPT services (required for citation, classifier, and quality agents)
+OPENAI_API_KEY=your_openai_api_key_here
+ANTHROPIC_API_KEY=your_anthropic_api_key_here
+DATABASE_URL=postgresql://llmuser:llmpassword@postgres/llmorchestrator
+CELERY_BROKER_URL=redis://redis:6379/0
+CELERY_RESULT_BACKEND=redis://redis:6379/0
+EOF
     echo -e "${YELLOW}Please edit the .env file to add your API keys.${NC}"
+    echo -e "${YELLOW}Open the .env file in a text editor and replace the placeholder API keys with your actual keys.${NC}"
 else
     echo -e "${GREEN}.env file already exists.${NC}"
 fi
