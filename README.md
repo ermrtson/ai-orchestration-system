@@ -15,7 +15,40 @@ This project creates a complete document processing pipeline using multiple AI a
 
 ## Architecture
 
-![Architecture Diagram](https://via.placeholder.com/800x400?text=AI+Orchestration+System+Architecture)
+```
+┌─────────────┐     ┌──────────────┐     ┌─────────────────┐
+│             │     │              │     │                 │
+│  Frontend   │────▶│  MCP Server  │────▶│  Celery Worker  │
+│             │     │              │     │                 │
+└─────────────┘     └──────────────┘     └────────┬────────┘
+                                                  │
+                                                  ▼
+┌────────────────────────────────────────────────────────────────────┐
+│                                                                    │
+│                      Specialized AI Agents                         │
+│                                                                    │
+│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐  ┌───────────┐ │
+│  │             │  │             │  │             │  │           │ │
+│  │File Handler │  │ Summarizer  │  │  Citation   │  │Classifier │ │
+│  │             │  │  (Claude)   │  │    (GPT)    │  │   (GPT)   │ │
+│  └─────────────┘  └─────────────┘  └─────────────┘  └───────────┘ │
+│                                                                    │
+│                           ┌─────────────┐                          │
+│                           │             │                          │
+│                           │   Quality   │                          │
+│                           │    Check    │                          │
+│                           │             │                          │
+│                           └─────────────┘                          │
+└────────────────────────────────────────────────────────────────────┘
+                                  │
+                                  ▼
+                         ┌──────────────────┐
+                         │                  │
+                         │   PostgreSQL     │
+                         │   Database      │
+                         │                  │
+                         └──────────────────┘
+```
 
 The system uses a microservices architecture with:
 - FastAPI for REST API endpoints
@@ -46,24 +79,28 @@ Before you begin, you'll need:
    cd ai-orchestration-system
    ```
 
-2. **Create a .env file in the root directory**
+2. **Run the setup script**
    ```bash
-   # Create and edit .env file
-   cat > .env << 'EOF'
-   OPENAI_API_KEY=your_openai_api_key_here
-   ANTHROPIC_API_KEY=your_anthropic_api_key_here
-   DATABASE_URL=postgresql://llmuser:llmpassword@postgres/llmorchestrator
-   CELERY_BROKER_URL=redis://redis:6379/0
-   CELERY_RESULT_BACKEND=redis://redis:6379/0
-   EOF
+   chmod +x setup.sh
+   ./setup.sh
    ```
 
-3. **Start the system**
+3. **Edit the .env file**
+   ```bash
+   # Open .env in your favorite editor
+   nano .env
+   
+   # Add your API keys
+   OPENAI_API_KEY=your_openai_api_key_here
+   ANTHROPIC_API_KEY=your_anthropic_api_key_here
+   ```
+
+4. **Start the system**
    ```bash
    docker-compose up -d
    ```
 
-4. **Access the frontend**
+5. **Access the frontend**
    
    Open your browser and navigate to:
    ```
@@ -85,19 +122,32 @@ The central orchestrator that:
 
 Each agent is implemented as a separate microservice:
 
-- **File Handler**: Processes document files and splits them into chunks
-- **Summarizer**: Uses Claude to generate document summaries
-- **Citation Extractor**: Uses GPT to extract bibliographic information
-- **Classifier**: Uses GPT to tag documents with relevant categories
-- **Quality Checker**: Validates the output of all other agents
+| Agent | Description | Model |
+|-------|-------------|-------|
+| **File Handler** | Processes document files and splits them into chunks | N/A |
+| **Summarizer** | Generates document summaries | Claude (Anthropic) |
+| **Citation Extractor** | Extracts bibliographic information | GPT-4 (OpenAI) |
+| **Classifier** | Tags documents with relevant categories | GPT-4 (OpenAI) |
+| **Quality Checker** | Validates the output of all other agents | GPT-4 (OpenAI) |
 
 ### 3. Frontend
 
-A simple React-based interface that allows users to:
+A React-based interface that allows users to:
 - Upload documents
 - View processing status
 - Browse processed documents
 - Search the document database
+
+## Document Processing Flow
+
+1. **Upload**: User uploads a document through the frontend
+2. **Preprocessing**: File Handler extracts text and chunks it if necessary
+3. **Summarization**: Summarizer (Claude) creates a concise summary
+4. **Citation Extraction**: Citation Agent (GPT) extracts bibliographic information
+5. **Classification**: Classifier (GPT) assigns relevant tags
+6. **Quality Checking**: Quality Agent validates all outputs
+7. **Storage**: Document and metadata are stored in the database
+8. **Display**: Results are available to the user via the frontend
 
 ## Development
 
@@ -116,9 +166,19 @@ To modify or extend the system:
 ## Troubleshooting
 
 - **Check service status**: `docker-compose ps`
-- **View logs**: `docker-compose logs mcp` (or any other service name)
+- **View logs**: `docker-compose logs -f`
 - **Restart a service**: `docker-compose restart mcp` (or any other service name)
 - **Reset the entire system**: `docker-compose down -v && docker-compose up -d`
+
+## API Endpoints
+
+The MCP Server provides the following API endpoints:
+
+- `GET /`: Welcome message
+- `POST /upload/`: Upload a document for processing
+- `GET /task/{task_id}`: Get the status of a processing task
+- `GET /document/{document_id}`: Get details of a processed document
+- `GET /documents/`: Get a list of all processed documents
 
 ## Next Steps
 
