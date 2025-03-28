@@ -61,7 +61,8 @@ The system uses a microservices architecture with:
 
 Before you begin, you'll need:
 
-1. **Docker & Docker Compose**
+1. **Docker Desktop (REQUIRED)**
+   - **IMPORTANT**: Docker Desktop must be installed and RUNNING
    - Windows/Mac: Install [Docker Desktop](https://www.docker.com/products/docker-desktop/)
    - Linux: Install [Docker Engine](https://docs.docker.com/engine/install/) and [Docker Compose](https://docs.docker.com/compose/install/)
 
@@ -73,34 +74,40 @@ Before you begin, you'll need:
 
 ## Quick Start
 
-1. **Clone the repository**
+For detailed installation instructions, see [INSTALL.md](INSTALL.md).
+
+1. **Make sure Docker Desktop is running**
+   - Open Docker Desktop from your Applications folder (macOS) or Start Menu (Windows)
+   - Wait for Docker to fully start (the whale icon should be solid, not animated)
+
+2. **Clone the repository**
    ```bash
    git clone https://github.com/ermrtson/ai-orchestration-system.git
    cd ai-orchestration-system
    ```
 
-2. **Run the setup script**
+3. **Run the setup script**
    ```bash
    chmod +x setup.sh
    ./setup.sh
    ```
 
-3. **Edit the .env file**
+4. **Edit the .env file** to add your API keys:
    ```bash
    # Open .env in your favorite editor
    nano .env
    
-   # Add your API keys
+   # Add your API keys (no quotes or backticks)
    OPENAI_API_KEY=your_openai_api_key_here
    ANTHROPIC_API_KEY=your_anthropic_api_key_here
    ```
 
-4. **Start the system**
+5. **Start the system**
    ```bash
    docker-compose up -d
    ```
 
-5. **Access the frontend**
+6. **Access the frontend**
    
    Open your browser and navigate to:
    ```
@@ -138,16 +145,21 @@ A React-based interface that allows users to:
 - Browse processed documents
 - Search the document database
 
-## Document Processing Flow
+## Troubleshooting
 
-1. **Upload**: User uploads a document through the frontend
-2. **Preprocessing**: File Handler extracts text and chunks it if necessary
-3. **Summarization**: Summarizer (Claude) creates a concise summary
-4. **Citation Extraction**: Citation Agent (GPT) extracts bibliographic information
-5. **Classification**: Classifier (GPT) assigns relevant tags
-6. **Quality Checking**: Quality Agent validates all outputs
-7. **Storage**: Document and metadata are stored in the database
-8. **Display**: Results are available to the user via the frontend
+If you encounter any issues, try our troubleshooting script:
+
+```bash
+chmod +x check_system.sh
+./check_system.sh
+```
+
+Common issues:
+- **Docker not running**: Make sure Docker Desktop is running (see [INSTALL.md](INSTALL.md))
+- **API key format issues**: Ensure your .env file is properly formatted (no quotes or backticks)
+- **Port conflicts**: Make sure ports 3000, 5432, 6379, and 8000-8005 are available
+
+For more troubleshooting tips, see [INSTALL.md](INSTALL.md).
 
 ## Development
 
@@ -162,13 +174,6 @@ To modify or extend the system:
 
 3. **Modify the workflow**
    - Edit the document processing logic in `mcp/celery_app.py`
-
-## Troubleshooting
-
-- **Check service status**: `docker-compose ps`
-- **View logs**: `docker-compose logs -f`
-- **Restart a service**: `docker-compose restart mcp` (or any other service name)
-- **Reset the entire system**: `docker-compose down -v && docker-compose up -d`
 
 ## API Endpoints
 
