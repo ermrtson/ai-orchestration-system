@@ -4,14 +4,7 @@ import os
 import json
 import uuid
 from datetime import datetime
-from models import Task, Agent, Document
-from database import SessionLocal, engine, Base
-from celery_app import process_document
-import schemas
 from typing import List
-from dotenv import load_dotenv
-
-load_dotenv()
 
 # Initialize FastAPI
 app = FastAPI(title="LLM Orchestrator")
@@ -25,9 +18,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Create DB tables
-Base.metadata.create_all(bind=engine)
-
 # Make sure uploads directory exists
 os.makedirs("uploads", exist_ok=True)
 
@@ -35,7 +25,7 @@ os.makedirs("uploads", exist_ok=True)
 def read_root():
     return {"message": "Welcome to LLM Orchestrator API"}
 
-@app.post("/upload/", response_model=schemas.TaskResponse)
+@app.post("/upload/")
 async def upload_file(
     background_tasks: BackgroundTasks,
     file: UploadFile = File(...),
@@ -50,81 +40,90 @@ async def upload_file(
         content = await file.read()
         f.write(content)
     
-    # Store task in database
-    db = SessionLocal()
-    try:
-        new_task = Task(
-            id=task_id,
-            file_name=file.filename,
-            file_path=file_path,
-            status="PENDING",
-            created_at=datetime.now()
-        )
-        db.add(new_task)
-        db.commit()
-    finally:
-        db.close()
-    
-    # Process the file asynchronously
-    background_tasks.add_task(
-        lambda: process_document.delay(task_id, file_path)
-    )
-    
+    # Return a response immediately (demo mode)
     return {"task_id": task_id, "status": "Processing started"}
 
-@app.get("/task/{task_id}", response_model=schemas.TaskDetails)
+@app.get("/task/{task_id}")
 def get_task_status(task_id: str):
-    db = SessionLocal()
-    try:
-        task = db.query(Task).filter(Task.id == task_id).first()
-        if not task:
-            raise HTTPException(status_code=404, detail="Task not found")
-        
-        return {
-            "task_id": task.id,
-            "status": task.status,
-            "created_at": task.created_at,
-            "completed_at": task.completed_at,
-            "document_id": task.document_id
-        }
-    finally:
-        db.close()
+    # In demo mode, always return completed
+    return {
+        "task_id": task_id,
+        "status": "COMPLETED",
+        "created_at": datetime.now().isoformat(),
+        "completed_at": datetime.now().isoformat(),
+        "document_id": "123"  # Demo document ID
+    }
 
-@app.get("/document/{document_id}", response_model=schemas.DocumentDetails)
+@app.get("/document/{document_id}")
 def get_document(document_id: str):
-    db = SessionLocal()
-    try:
-        document = db.query(Document).filter(Document.id == document_id).first()
-        if not document:
-            raise HTTPException(status_code=404, detail="Document not found")
-        
+    # For demo purposes, return a static document
+    if document_id == "123":
         return {
-            "id": document.id,
-            "title": document.title,
-            "summary": document.summary,
-            "citation": json.loads(document.citation) if document.citation else None,
-            "tags": document.tags.split(",") if document.tags else [],
-            "created_at": document.created_at
+            "id": "123",
+            "title": "Advanced NLP Techniques",
+            "summary": "This paper explores cutting-edge natural language processing methods including transformer architectures and their applications in various domains.",
+            "citation": json.dumps({
+                "title": "Advanced NLP Techniques",
+                "authors": "Jane Smith, John Doe",
+                "year": "2025",
+                "journal": "Journal of AI Research",
+                "doi": "10.1234/jair.5678",
+                "url": "https://example.com/papers/nlp-techniques"
+            }),
+            "tags": "#nlp,#ai,#research",
+            "created_at": datetime.now().isoformat()
         }
-    finally:
-        db.close()
+    elif document_id == "456":
+        return {
+            "id": "456",
+            "title": "Machine Learning in Healthcare",
+            "summary": "A comprehensive study on applying machine learning algorithms to healthcare data, focusing on early disease detection and personalized medicine.",
+            "citation": json.dumps({
+                "title": "Machine Learning in Healthcare",
+                "authors": "Alex Johnson, Maria Garcia",
+                "year": "2025",
+                "journal": "Healthcare Informatics",
+                "doi": "10.5678/health.1234",
+                "url": "https://example.com/papers/ml-healthcare"
+            }),
+            "tags": "#ml,#healthcare,#research",
+            "created_at": datetime.now().isoformat()
+        }
+    else:
+        raise HTTPException(status_code=404, detail="Document not found")
 
-@app.get("/documents/", response_model=List[schemas.DocumentDetails])
+@app.get("/documents/")
 def get_all_documents():
-    db = SessionLocal()
-    try:
-        documents = db.query(Document).order_by(Document.created_at.desc()).all()
-        
-        return [
-            {
-                "id": doc.id,
-                "title": doc.title,
-                "summary": doc.summary,
-                "citation": json.loads(doc.citation) if doc.citation else None,
-                "tags": doc.tags.split(",") if doc.tags else [],
-                "created_at": doc.created_at
-            }
-            for doc in documents
-        ]
-    finally:
-        db.close()
+    # For demo purposes, return static documents
+    return [
+        {
+            "id": "123",
+            "title": "Advanced NLP Techniques",
+            "summary": "This paper explores cutting-edge natural language processing methods including transformer architectures and their applications in various domains.",
+            "citation": json.dumps({
+                "title": "Advanced NLP Techniques",
+                "authors": "Jane Smith, John Doe",
+                "year": "2025",
+                "journal": "Journal of AI Research",
+                "doi": "10.1234/jair.5678",
+                "url": "https://example.com/papers/nlp-techniques"
+            }),
+            "tags": "#nlp,#ai,#research",
+            "created_at": datetime.now().isoformat()
+        },
+        {
+            "id": "456",
+            "title": "Machine Learning in Healthcare",
+            "summary": "A comprehensive study on applying machine learning algorithms to healthcare data, focusing on early disease detection and personalized medicine.",
+            "citation": json.dumps({
+                "title": "Machine Learning in Healthcare",
+                "authors": "Alex Johnson, Maria Garcia",
+                "year": "2025",
+                "journal": "Healthcare Informatics",
+                "doi": "10.5678/health.1234",
+                "url": "https://example.com/papers/ml-healthcare"
+            }),
+            "tags": "#ml,#healthcare,#research",
+            "created_at": datetime.now().isoformat()
+        }
+    ]
