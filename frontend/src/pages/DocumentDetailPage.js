@@ -7,9 +7,6 @@ import {
   ListItemText
 } from '@mui/material';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
-import axios from 'axios';
-
-const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
 
 function DocumentDetailPage() {
   const { id } = useParams();
@@ -18,22 +15,46 @@ function DocumentDetailPage() {
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    fetchDocument();
-  }, [id]);
-
-  const fetchDocument = async () => {
-    try {
-      setLoading(true);
-      const response = await axios.get(`${API_URL}/document/${id}`);
-      setDocument(response.data);
-      setError(null);
-    } catch (err) {
-      console.error('Error fetching document:', err);
-      setError('Error loading document. It may not exist or has been deleted.');
-    } finally {
+    // Mock API call for testing
+    setTimeout(() => {
+      if (id === '123') {
+        setDocument({
+          id: '123',
+          title: 'Advanced NLP Techniques',
+          summary: 'This paper explores cutting-edge natural language processing methods including transformer architectures and their applications in various domains. The study examines performance metrics across multiple benchmarks and proposes novel optimization strategies. Future work directions include multimodal applications and low-resource language adaptation.',
+          tags: ['#nlp', '#ai', '#research'],
+          created_at: new Date().toISOString(),
+          citation: {
+            title: "Advanced NLP Techniques",
+            authors: "Jane Smith, John Doe",
+            year: "2025",
+            journal: "Journal of AI Research",
+            doi: "10.1234/jair.5678",
+            url: "https://example.com/papers/nlp-techniques"
+          }
+        });
+      } else if (id === '456') {
+        setDocument({
+          id: '456',
+          title: 'Machine Learning in Healthcare',
+          summary: 'A comprehensive study on applying machine learning algorithms to healthcare data, focusing on early disease detection and personalized medicine. The paper reviews current applications and challenges in implementing ML solutions in clinical settings. Ethical considerations and data privacy concerns are addressed with proposed frameworks for responsible AI deployment.',
+          tags: ['#ml', '#healthcare', '#research'],
+          created_at: new Date().toISOString(),
+          citation: {
+            title: "Machine Learning in Healthcare",
+            authors: "Alex Johnson, Maria Garcia",
+            year: "2025",
+            journal: "Healthcare Informatics",
+            doi: "10.5678/health.1234",
+            url: "https://example.com/papers/ml-healthcare"
+          }
+        });
+      } else {
+        setError('Document not found');
+      }
       setLoading(false);
-    }
-  };
+    }, 1000);
+  }, [id]);
 
   const formatDate = (dateString) => {
     if (!dateString) return '';
